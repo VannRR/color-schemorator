@@ -24,7 +24,7 @@ Note: The order of arguments is important.
 
 ## Install
 
-To install the csor application, follow these steps:
+To install the Color Schemorator application, follow these steps:
 
 1) Clone the repository:
 ```
@@ -48,15 +48,18 @@ INSTALL_DIR := /your/custom/path/
 ```
 Replace ~/bin/ with your custom path if you changed the INSTALL_DIR.
 
-
 ## Example Images
 
-### Before
-![Alt text](/image-handling/test-img-input.png?raw=true "Before image")
-
-### After
-![Alt text](/image-handling/test-img-output-expect.png?raw=true "After image")
-
+<div style="display: flex; justify-content: space-around; text-align: center;">
+  <div>
+    <label style="display: block;">Before</label>
+    <img src="/image-handling/test-img-input.png?raw=true" style="max-width: 100%;">
+  </div>
+  <div>
+    <label style="display: block;">After</label>
+    <img src="/image-handling/test-img-output-expect.png?raw=true" style="max-width: 100%;">
+  </div>
+</div>
 
 ## License
 
