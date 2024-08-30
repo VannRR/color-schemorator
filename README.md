@@ -24,7 +24,8 @@ Note: The order of arguments is important.
 
 ## Install
 
-To install the Color Schemorator application, follow these steps:
+To install the Color Schemorator application,
+follow these steps (note `go` and `make` need to be installed first):
 
 1) Clone the repository:
 ```
