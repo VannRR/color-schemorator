@@ -10,13 +10,13 @@ import (
 	"strings"
 )
 
-const minColors int = 2
-const maxColors int = 128
+const MinColors int = 2
+const MaxColors int = 128
 const maxParseErrors = 15
 const maxPaletteFileSizeMB = 1
 
-func ParsePalette(filePath string) (color.Palette, error) {
-	file, err := os.Open(filePath)
+func ParsePalette(paletteInputPath string) (color.Palette, error) {
+	file, err := os.Open(paletteInputPath)
 	if err != nil {
 		return color.Palette{}, err
 	}
@@ -57,14 +57,14 @@ func ParsePalette(filePath string) (color.Palette, error) {
 }
 
 func parseColorsFromLines(lines []string) ([]color.Color, error) {
-	colors := make([]color.Color, 0, maxColors)
+	colors := make([]color.Color, 0, MaxColors)
 	errors := make([]string, 0, maxParseErrors)
 	errCount := 0
 	for ln, line := range lines {
 		rgba, err := parseHexColor(line)
-		if len(colors) > maxColors {
+		if len(colors) > MaxColors {
 			errors = append(
-				[]string{fmt.Sprintf("Max amount of colors in palette are %v", maxColors)},
+				[]string{fmt.Sprintf("Max amount of colors in palette are %v", MaxColors)},
 				errors...,
 			)
 			errCount += 1
@@ -81,9 +81,9 @@ func parseColorsFromLines(lines []string) ([]color.Color, error) {
 		}
 	}
 
-	if len(colors) < minColors {
+	if len(colors) < MinColors {
 		errors = append(
-			[]string{fmt.Sprintf("Minimum amount of colors in palette are %v", minColors)},
+			[]string{fmt.Sprintf("Minimum amount of colors in palette are %v", MinColors)},
 			errors...,
 		)
 		errCount += 1
@@ -103,15 +103,15 @@ func parseColorsFromLines(lines []string) ([]color.Color, error) {
 
 func parseHexColor(hexColorString string) (color.Color, error) {
 	if len(hexColorString) != 4 && len(hexColorString) != 7 {
-		return color.RGBA{}, fmt.Errorf("Invalid hex color '%v'", truncString(hexColorString, 30))
+		return color.RGBA{}, fmt.Errorf("Invalid hex color '%v'", truncateString(hexColorString, 30))
 	}
 	if !strings.HasPrefix(hexColorString, "#") {
-		return color.RGBA{}, fmt.Errorf("Invalid hex color '%v'", truncString(hexColorString, 30))
+		return color.RGBA{}, fmt.Errorf("Invalid hex color '%v'", truncateString(hexColorString, 30))
 	}
 
 	for _, c := range hexColorString[1:] {
 		if !((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) {
-			return color.RGBA{}, fmt.Errorf("Invalid hex color '%v'", truncString(hexColorString, 30))
+			return color.RGBA{}, fmt.Errorf("Invalid hex color '%v'", truncateString(hexColorString, 30))
 		}
 	}
 
@@ -133,9 +133,9 @@ func parseHexColor(hexColorString string) (color.Color, error) {
 	return color.RGBA{R: r, G: g, B: b, A: 255}, nil
 }
 
-func truncString(s string, l int) string {
-	if len(s)+3 > l {
-		s = s[0:l] + "..."
+func truncateString(s string, length int) string {
+	if len(s)+3 > length {
+		s = s[0:length] + "..."
 	}
 	return s
 }
@@ -146,4 +146,33 @@ func parseHexPair(hexPair string) (byte, error) {
 		return 0, err
 	}
 	return byte(value), nil
+}
+
+func SaveNewPalette(paletteOutputPath string, palette color.Palette) error {
+	var hexColors []string
+	for _, c := range palette {
+		r, g, b, _ := c.RGBA()
+		color := fmt.Sprintf("#%02X%02X%02X",
+			byte(r>>8), byte(g>>8), byte(b>>8))
+		hexColors = append(hexColors, color)
+	}
+
+	outputFile, err := os.Create(paletteOutputPath)
+	if err != nil {
+		return err
+	}
+	defer outputFile.Close()
+
+	fileInfo, err := outputFile.Stat()
+	if err != nil {
+		return err
+	}
+
+	if fileInfo.Size() > maxPaletteFileSizeMB*1024*1024 {
+		return fmt.Errorf("Palette file size exceeds %vMB\n", maxPaletteFileSizeMB)
+	}
+
+	outputFile.WriteString(strings.Join(hexColors, "\n"))
+
+	return nil
 }

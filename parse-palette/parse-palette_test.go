@@ -5,7 +5,8 @@ import (
 	"testing"
 )
 
-const testPalettePath = "test-palette.txt"
+const testPaletteInputPath = "test-palette-input.txt"
+const testPaletteOutputPath = "test-palette-output.txt"
 
 func Test_Init(t *testing.T) {
 	expectedColors := color.Palette{
@@ -38,7 +39,7 @@ func Test_Init(t *testing.T) {
 		color.RGBA{230, 233, 239, 255},
 		color.RGBA{220, 224, 232, 255},
 	}
-	palette, err := ParsePalette(testPalettePath)
+	palette, err := ParsePalette(testPaletteInputPath)
 	if err != nil {
 		t.Errorf("Expected no error, got error: %v", err)
 	}
@@ -108,6 +109,38 @@ func Test_ParseHexPair(t *testing.T) {
 			if result != tt.expected {
 				t.Errorf("Expected %x for input %q, but got %x", tt.expected, tt.hexPair, result)
 			}
+		}
+	}
+}
+
+func Test_SaveNewPalette(t *testing.T) {
+	writePalette := color.Palette{
+		color.RGBA{0xaf, 0xff, 0xff, 0xff},
+		color.RGBA{0xbf, 0xff, 0xff, 0xff},
+		color.RGBA{0xcf, 0xff, 0xff, 0xff},
+		color.RGBA{0xdf, 0xff, 0xff, 0xff},
+		color.RGBA{0xef, 0xff, 0xff, 0xff},
+		color.RGBA{0xff, 0xff, 0xff, 0xff},
+	}
+
+	err := SaveNewPalette(testPaletteOutputPath, writePalette)
+	if err != nil {
+		t.Fatalf("Expected no error, got error: %v", err)
+	}
+
+	readPalette, err := ParsePalette(testPaletteOutputPath)
+	if err != nil {
+		t.Fatalf("Expected no error, got error: %v", err)
+	}
+
+	if len(writePalette) != len(readPalette) {
+		t.Fatalf("Expected same palette len, got: write=%v, read=%v",
+			len(writePalette), len(readPalette))
+	}
+
+	for i := 0; i < len(writePalette); i++ {
+		if writePalette[i] != readPalette[i] {
+			t.Errorf("expected: %v, got: %v", writePalette[i], readPalette[i])
 		}
 	}
 }

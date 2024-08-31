@@ -1,6 +1,7 @@
 package imagehandling
 
 import (
+	parsepalette "color-schemorator/parse-palette"
 	"fmt"
 	"image"
 	"image/color"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"sync"
 )
 
@@ -44,11 +46,10 @@ func GetDecodedImage(filePathString string) (image.Image, error) {
 	return img, nil
 }
 
-func GenerateNewImg(oldImg image.Image, palette color.Palette) *image.Paletted {
-	bounds := oldImg.Bounds()
-	newImg := image.NewPaletted(bounds, palette)
+func ExtractPalette(inputImage image.Image) color.Palette {
+	var colors sync.Map
+	bounds := inputImage.Bounds()
 	numCPU := runtime.NumCPU()
-	runtime.GOMAXPROCS(numCPU)
 
 	strips := numCPU
 	stripWidth := (bounds.Max.X - bounds.Min.X) / strips
@@ -66,7 +67,17 @@ func GenerateNewImg(oldImg image.Image, palette color.Palette) *image.Paletted {
 
 		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 			for x := startX; x < endX; x++ {
-				newImg.Set(x, y, palette.Convert(oldImg.At(x, y)))
+				r, g, b, a := inputImage.At(x, y).RGBA()
+				rB := byte(r >> 8)
+				gB := byte(g >> 8)
+				bB := byte(b >> 8)
+				aB := byte(a >> 8)
+				rgba := color.RGBA{rB, gB, bB, aB}
+
+				actual, _ := colors.LoadOrStore(rgba, uint32(1))
+				if actual != uint32(1) {
+					colors.Store(rgba, actual.(uint32)+1)
+				}
 			}
 		}
 	}
@@ -74,6 +85,59 @@ func GenerateNewImg(oldImg image.Image, palette color.Palette) *image.Paletted {
 	for i := 0; i < strips; i++ {
 		wg.Add(1)
 		go processStrip(i)
+	}
+
+	wg.Wait()
+
+	type kv struct {
+		rgba  color.RGBA
+		count uint32
+	}
+
+	var kvSlice []kv
+	colors.Range(func(key, value interface{}) bool {
+		kvSlice = append(kvSlice, kv{key.(color.RGBA), value.(uint32)})
+		return true
+	})
+
+	sort.Slice(kvSlice, func(i, j int) bool {
+		return kvSlice[i].count > kvSlice[j].count
+	})
+
+	var palette color.Palette
+	for i := 0; i < parsepalette.MaxColors && i < len(kvSlice); i++ {
+		palette = append(palette, kvSlice[i].rgba)
+	}
+
+	return palette
+}
+
+func GenerateNewImg(oldImg image.Image, palette color.Palette) *image.Paletted {
+	bounds := oldImg.Bounds()
+	newImg := image.NewPaletted(bounds, palette)
+	numCPU := runtime.NumCPU()
+
+	stripWidth := (bounds.Max.X - bounds.Min.X) / numCPU
+
+	var wg sync.WaitGroup
+
+	processStrip := func(startX, endX int) {
+		defer wg.Done()
+		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+			for x := startX; x < endX; x++ {
+				newImg.Set(x, y, palette.Convert(oldImg.At(x, y)))
+			}
+		}
+	}
+
+	for i := 0; i < numCPU; i++ {
+		startX := bounds.Min.X + i*stripWidth
+		endX := startX + stripWidth
+		if i == numCPU-1 {
+			endX = bounds.Max.X
+		}
+		wg.Add(1)
+		go processStrip(startX, endX)
 	}
 
 	wg.Wait()

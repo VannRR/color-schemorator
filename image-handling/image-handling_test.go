@@ -1,13 +1,14 @@
 package imagehandling
 
 import (
-	"color-schemorator/parse-palette"
+	parsepalette "color-schemorator/parse-palette"
 	"image"
 	"image/color"
+	"slices"
 	"testing"
 )
 
-const testColorSchemePath = "../parse-palette/test-palette.txt"
+const testPaletteInputPath = "../parse-palette/test-palette-input.txt"
 const testImgInputPath = "test-img-input.png"
 const testImgOutputExpectPath = "test-img-output-expect.png"
 const testImgOutputSavePath = "test-img-output-save" // add  ext in function
@@ -19,13 +20,51 @@ func Test_GetDecodedImage(t *testing.T) {
 	}
 }
 
+func Test_ExtractPalette(t *testing.T) {
+	width, height := 100, 100
+
+	expectedPalette := color.Palette{
+		color.RGBA{0xaf, 0xff, 0xff, 0xff},
+		color.RGBA{0xbf, 0xff, 0xff, 0xff},
+		color.RGBA{0xcf, 0xff, 0xff, 0xff},
+		color.RGBA{0xdf, 0xff, 0xff, 0xff},
+		color.RGBA{0xef, 0xff, 0xff, 0xff},
+	}
+
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	segment := height / len(expectedPalette)
+	for y := 0; y < height; y++ {
+		for x := 0; x < width; x++ {
+			i := y / segment
+			if i >= len(expectedPalette) {
+				i = len(expectedPalette) - 1
+			}
+			img.Set(x, y, expectedPalette[i])
+		}
+	}
+
+	actualPalette := ExtractPalette(img)
+
+	if len(expectedPalette) != len(actualPalette) {
+		t.Fatalf("Expected same palette len, got: expected=%v, actual=%v",
+			len(expectedPalette), len(actualPalette))
+	}
+
+	for i := 0; i < len(expectedPalette); i++ {
+		if !slices.Contains(expectedPalette, actualPalette[i]) {
+			t.Errorf("expected palette: %v does not contain actualPalette[%v]=%v",
+				expectedPalette, i, actualPalette[i])
+		}
+	}
+}
+
 func Test_CreateNewImg(t *testing.T) {
 	oldImg, err := GetDecodedImage(testImgInputPath)
 	if err != nil {
 		t.Fatalf("Expected no error, got error: %v", err)
 	}
 
-	palette, err := parsepalette.ParsePalette(testColorSchemePath)
+	palette, err := parsepalette.ParsePalette(testPaletteInputPath)
 	if err != nil {
 		t.Fatalf("Expected no error, got error: %v", err)
 	}

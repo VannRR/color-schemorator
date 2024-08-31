@@ -1,25 +1,36 @@
 # Color Schemorator
 
 ```
-Usage: csor <palette-file> <image-input> <image-output> [--version]
+Usage:
+  csor -m generate -p <palettePath> -i <imgInputPath> -o <imgOutputPath>
+  csor -m extract -i <imgInputPath> -P <paletteOutputPath>
+  csor -v
+  csor -h
 
 Description:
-  Color Schemorator is a tool that adjusts the color palette of an image
-  based on a provided list of hex color codes.
-  It creates a new image from the original colors
-  of the old image with their closest matches from the color
-  palette defined in the file (file can have '//' comments).
+  Color Schemorator modifies an image's color palette based on a given list
+  of hex color codes (file can have '//' comments) or extracts the color
+  palette from an image.
+
+  - Generate mode: Creates a new image by replacing its colors with the
+    closest matches from the specified palette.
+  - Extract mode: Extracts the color palette from an image (in order of
+    occurrence) and saves it to a file.
 
 Arguments:
-  <palette-file> Path to the plain text file containing hex color codes, one per line.
-  <image-input>  Path to the input image file (supported formats: jpg, jpeg, png).
-  <image-output> Path to the output image file (supported formats: jpg, jpeg, png).
-  --version      Display the version of the Color Schemorator tool.
+  -m   Mode of operation: 'generate' or 'extract'.
+  -p   Path to the plain text file containing hex color codes, one per line
+       (required for 'generate' mode).
+  -i   Path to the input image file (supported formats: jpg, jpeg, png).
+  -o   Path to the output image file (supported formats: jpg, jpeg, png)
+       (required for 'generate' mode).
+  -P   Path to the output palette file (required for 'extract' mode).
+  -v   Display the version of the Color Schemorator tool.
+  -h   Display this help message.
 
 Example:
-  csor colors.txt original-image.jpg new-image.jpg
-
-Note: The order of arguments is important.
+  csor -m generate -p colors.txt -i original-image.jpg -o new-image.jpg
+  csor -m extract -i original-image.jpg -P palette.txt
 ```
 
 ## Install
