@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-const version = "1.1.0"
+const version = "1.1.1"
 
 func main() {
 	versionFlag := flag.Bool("v", false, "Display the version of the Color Schemorator tool")
@@ -37,7 +37,7 @@ func main() {
 	switch *mode {
 	case "generate":
 		if *paletteInput == "" || *imageInput == "" || *imageOutput == "" {
-			printHelpMessage()
+			invalidArgsMessage()
 			os.Exit(1)
 		}
 		start := time.Now()
@@ -46,7 +46,7 @@ func main() {
 
 	case "extract":
 		if *imageInput == "" || *paletteOutput == "" {
-			printHelpMessage()
+			invalidArgsMessage()
 			os.Exit(1)
 		}
 		start := time.Now()
@@ -54,7 +54,7 @@ func main() {
 		fmt.Println("Palette extracted successfully in", time.Since(start))
 
 	default:
-		printHelpMessage()
+		invalidArgsMessage()
 		os.Exit(1)
 	}
 }
@@ -156,4 +156,17 @@ func printHelpMessage() {
 	fmt.Println("Example:")
 	fmt.Println("  csor -m generate -p colors.txt -i original-image.jpg -o new-image.jpg")
 	fmt.Println("  csor -m extract -i original-image.jpg -P palette.txt")
+}
+
+func invalidArgsMessage() {
+	fmt.Println("Invalid input. Please check your command and try again.")
+	fmt.Println()
+	fmt.Println("Usage:")
+	fmt.Println("  csor -m generate -p <palettePath> -i <imgInputPath> -o <imgOutputPath>")
+	fmt.Println("  csor -m extract -i <imgInputPath> -P <paletteOutputPath>")
+	fmt.Println("  csor -v")
+	fmt.Println("  csor -h")
+	fmt.Println()
+	fmt.Println("For more information, use:")
+	fmt.Println("  csor -h")
 }
