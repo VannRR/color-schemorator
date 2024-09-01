@@ -56,7 +56,7 @@ INSTALL_DIR := /your/custom/path/
 ```
 3) Verify the installation:
 ```
- ~/bin/csor --version
+ ~/bin/csor -v
 ```
 Replace ~/bin/ with your custom path if you changed the INSTALL_DIR.
 
