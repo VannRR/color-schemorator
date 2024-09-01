@@ -1,11 +1,12 @@
 package imagehandling
 
 import (
-	parsepalette "color-schemorator/parse-palette"
 	"image"
 	"image/color"
 	"slices"
 	"testing"
+
+	parsepalette "color-schemorator/parse-palette"
 )
 
 const testPaletteInputPath = "../parse-palette/test-palette-input.txt"

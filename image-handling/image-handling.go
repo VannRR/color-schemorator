@@ -1,7 +1,6 @@
 package imagehandling
 
 import (
-	parsepalette "color-schemorator/parse-palette"
 	"fmt"
 	"image"
 	"image/color"
@@ -12,113 +11,122 @@ import (
 	"runtime"
 	"sort"
 	"sync"
+
+	parsepalette "color-schemorator/parse-palette"
+	"color-schemorator/utility"
 )
 
 const maxImgFileSizeMB = 15
 
+// GetDecodedImage opens, validates, and decodes an image from the given file path.
+// It returns the decoded image or an error if any step fails.
 func GetDecodedImage(filePathString string) (image.Image, error) {
-	ext := filepath.Ext(filePathString)
-	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
-		return nil, fmt.Errorf("Invalid file extension on input file: %v", ext)
+	if err := utility.ValidateExtension(filePathString, "input image"); err != nil {
+		return nil, err
 	}
+
 	file, err := os.Open(filePathString)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open file %s: %w", filePathString, err)
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("failed to close file %s: %w", filePathString, cerr)
+		}
+	}()
 
-	fileInfo, err := file.Stat()
-	if err != nil {
-		return nil, err
-	}
-
-	if fileInfo.Size() > maxImgFileSizeMB*1024*1024 {
-		return nil,
-			fmt.Errorf("Input image file size exceeds %vMB\n", maxImgFileSizeMB)
+	if err := utility.ValidateFileSize(file, "Input image", maxImgFileSizeMB); err != nil {
+		return nil, fmt.Errorf("file size validation failed for %s: %w", filePathString, err)
 	}
 
 	img, _, err := image.Decode(file)
 	if err != nil {
-		return nil,
-			fmt.Errorf("Error decoding image: %v", err)
+		return nil, fmt.Errorf("error decoding image %s: %w", filePathString, err)
 	}
 
 	return img, nil
 }
 
+// ExtractPalette extracts the most common colors from an image, returning them as a color.Palette.
 func ExtractPalette(inputImage image.Image) color.Palette {
-	var colors sync.Map
 	bounds := inputImage.Bounds()
 	numCPU := runtime.NumCPU()
+	stripWidth := (bounds.Max.X - bounds.Min.X) / numCPU
 
-	strips := numCPU
-	stripWidth := (bounds.Max.X - bounds.Min.X) / strips
+	type colorCount struct {
+		color color.RGBA
+		count uint32
+	}
 
-	var wg sync.WaitGroup
-
-	processStrip := func(stripIndex int) {
+	processStrip := func(startX, endX int, colorMap map[color.RGBA]uint32, wg *sync.WaitGroup) {
 		defer wg.Done()
-
-		startX := bounds.Min.X + stripIndex*stripWidth
-		endX := startX + stripWidth
-		if stripIndex == strips-1 {
-			endX = bounds.Max.X
-		}
 
 		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 			for x := startX; x < endX; x++ {
-				r, g, b, a := inputImage.At(x, y).RGBA()
-				rB := byte(r >> 8)
-				gB := byte(g >> 8)
-				bB := byte(b >> 8)
-				aB := byte(a >> 8)
-				rgba := color.RGBA{rB, gB, bB, aB}
-
-				actual, _ := colors.LoadOrStore(rgba, uint32(1))
-				if actual != uint32(1) {
-					colors.Store(rgba, actual.(uint32)+1)
-				}
+				rgba := rgbaAt(inputImage, x, y)
+				colorMap[rgba]++
 			}
 		}
 	}
 
-	for i := 0; i < strips; i++ {
+	var wg sync.WaitGroup
+	colorMaps := make([]map[color.RGBA]uint32, numCPU)
+
+	for i := range colorMaps {
+		colorMaps[i] = make(map[color.RGBA]uint32)
+	}
+
+	for i := 0; i < numCPU; i++ {
+		startX := bounds.Min.X + i*stripWidth
+		endX := startX + stripWidth
+		if i == numCPU-1 {
+			endX = bounds.Max.X // Handle the last strip to ensure full width is covered
+		}
+
 		wg.Add(1)
-		go processStrip(i)
+		go processStrip(startX, endX, colorMaps[i], &wg)
 	}
 
 	wg.Wait()
 
-	type kv struct {
-		rgba  color.RGBA
-		count uint32
+	finalColorMap := make(map[color.RGBA]uint32)
+	for _, cmap := range colorMaps {
+		for c, count := range cmap {
+			finalColorMap[c] += count
+		}
 	}
 
-	var kvSlice []kv
-	colors.Range(func(key, value interface{}) bool {
-		kvSlice = append(kvSlice, kv{key.(color.RGBA), value.(uint32)})
-		return true
-	})
+	var colorCountSlice []colorCount
+	for c, count := range finalColorMap {
+		colorCountSlice = append(colorCountSlice, colorCount{color: c, count: count})
+	}
 
-	sort.Slice(kvSlice, func(i, j int) bool {
-		return kvSlice[i].count > kvSlice[j].count
+	sort.Slice(colorCountSlice, func(i, j int) bool {
+		return colorCountSlice[i].count > colorCountSlice[j].count
 	})
 
 	var palette color.Palette
-	for i := 0; i < parsepalette.MaxColors && i < len(kvSlice); i++ {
-		palette = append(palette, kvSlice[i].rgba)
+	for i := 0; i < parsepalette.MaxColors && i < len(colorCountSlice); i++ {
+		palette = append(palette, colorCountSlice[i].color)
 	}
 
 	return palette
 }
 
+// rgbaAt extracts the RGBA color at a given pixel location
+func rgbaAt(img image.Image, x, y int) color.RGBA {
+	r, g, b, a := img.At(x, y).RGBA()
+	return color.RGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: uint8(a >> 8)}
+}
+
+// GenerateNewImg creates a new image by applying a color palette to the old image.
+// The function leverages parallel processing to enhance performance.
 func GenerateNewImg(oldImg image.Image, palette color.Palette) *image.Paletted {
 	bounds := oldImg.Bounds()
 	newImg := image.NewPaletted(bounds, palette)
 	numCPU := runtime.NumCPU()
 
 	stripWidth := (bounds.Max.X - bounds.Min.X) / numCPU
-
 	var wg sync.WaitGroup
 
 	processStrip := func(startX, endX int) {
@@ -134,45 +142,42 @@ func GenerateNewImg(oldImg image.Image, palette color.Palette) *image.Paletted {
 		startX := bounds.Min.X + i*stripWidth
 		endX := startX + stripWidth
 		if i == numCPU-1 {
-			endX = bounds.Max.X
+			endX = bounds.Max.X // Ensure the last strip covers the full width
 		}
+
 		wg.Add(1)
 		go processStrip(startX, endX)
 	}
 
 	wg.Wait()
-
 	return newImg
 }
 
+// SaveNewImg saves the new paletted image to the specified file path.
+// It supports saving in JPEG or PNG formats.
 func SaveNewImg(filePathString string, newImg *image.Paletted) error {
 	outputFile, err := os.Create(filePathString)
 	if err != nil {
-		return fmt.Errorf("Error creating file: %v", err)
+		return fmt.Errorf("failed to create file %s: %w", filePathString, err)
 	}
-	defer outputFile.Close()
-
-	fileInfo, err := outputFile.Stat()
-	if err != nil {
-		return err
-	}
-
-	if fileInfo.Size() > maxImgFileSizeMB*1024*1024 {
-		return fmt.Errorf("Output image file size exceeds %vMB\n", maxImgFileSizeMB)
-	}
+	defer func() {
+		if cerr := outputFile.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("failed to close file %s: %w", filePathString, cerr)
+		}
+	}()
 
 	ext := filepath.Ext(filePathString)
-
-	if ext == ".jpg" || ext == ".jpeg" {
+	switch ext {
+	case ".jpg", ".jpeg":
 		if err := jpeg.Encode(outputFile, newImg, &jpeg.Options{Quality: 90}); err != nil {
-			return fmt.Errorf("Error encoding new image: %v", err)
+			return fmt.Errorf("failed to encode image as JPEG: %w", err)
 		}
-	} else if ext == ".png" {
+	case ".png":
 		if err := png.Encode(outputFile, newImg); err != nil {
-			return fmt.Errorf("Error encoding new image: %v", err)
+			return fmt.Errorf("failed to encode image as PNG: %w", err)
 		}
-	} else {
-		return fmt.Errorf("Invalid file extension for image output file: %v", ext)
+	default:
+		return fmt.Errorf("invalid file extension for image output file: %v", ext)
 	}
 
 	return nil

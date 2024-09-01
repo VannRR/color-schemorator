@@ -1,16 +1,17 @@
 package main
 
 import (
-	imagehandling "color-schemorator/image-handling"
-	parsepalette "color-schemorator/parse-palette"
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
+
+	imagehandling "color-schemorator/image-handling"
+	parsepalette "color-schemorator/parse-palette"
+	"color-schemorator/utility"
 )
 
-const version = "1.1.1"
+const version = "1.1.2"
 
 func main() {
 	versionFlag := flag.Bool("v", false, "Display the version of the Color Schemorator tool")
@@ -37,7 +38,7 @@ func main() {
 	switch *mode {
 	case "generate":
 		if *paletteInput == "" || *imageInput == "" || *imageOutput == "" {
-			invalidArgsMessage()
+			printInvalidArgsMessage()
 			os.Exit(1)
 		}
 		start := time.Now()
@@ -46,7 +47,7 @@ func main() {
 
 	case "extract":
 		if *imageInput == "" || *paletteOutput == "" {
-			invalidArgsMessage()
+			printInvalidArgsMessage()
 			os.Exit(1)
 		}
 		start := time.Now()
@@ -54,17 +55,18 @@ func main() {
 		fmt.Println("Palette extracted successfully in", time.Since(start))
 
 	default:
-		invalidArgsMessage()
+		printInvalidArgsMessage()
 		os.Exit(1)
 	}
 }
 
+// generate creates a new image from the input image by replacing its palette
 func generate(paletteInputPath, imgInputPath, imgOutputPath string) {
-	if err := validateExtension(imgInputPath); err != nil {
+	if err := utility.ValidateExtension(imgInputPath, "input image"); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	if err := validateExtension(imgOutputPath); err != nil {
+	if err := utility.ValidateExtension(imgOutputPath, "output image"); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -89,8 +91,10 @@ func generate(paletteInputPath, imgInputPath, imgOutputPath string) {
 	}
 }
 
+// extract extracts the most common colors from an image, saving them to a plain
+// text file of hex color codes
 func extract(imgInputPath, paletteOutputPath string) {
-	if err := validateExtension(imgInputPath); err != nil {
+	if err := utility.ValidateExtension(imgInputPath, "input image"); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -106,14 +110,6 @@ func extract(imgInputPath, paletteOutputPath string) {
 	if err := parsepalette.SaveNewPalette(paletteOutputPath, palette); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
-	}
-}
-
-func validateExtension(filePathString string) error {
-	if ext := filepath.Ext(filePathString); ext != ".jpg" && ext != ".jpeg" && ext != ".png" {
-		return fmt.Errorf("Invalid file extension for image file: '%v'", ext)
-	} else {
-		return nil
 	}
 }
 
@@ -158,7 +154,7 @@ func printHelpMessage() {
 	fmt.Println("  csor -m extract -i original-image.jpg -P palette.txt")
 }
 
-func invalidArgsMessage() {
+func printInvalidArgsMessage() {
 	fmt.Println("Invalid input. Please check your command and try again.")
 	fmt.Println()
 	fmt.Println("Usage:")
