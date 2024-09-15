@@ -8,7 +8,7 @@ import (
 const testPaletteInputPath = "test-palette-input.txt"
 const testPaletteOutputPath = "test-palette-output.txt"
 
-func Test_Init(t *testing.T) {
+func Test_ParsePalette(t *testing.T) {
 	expectedColors := color.Palette{
 		color.RGBA{51, 51, 51, 255},
 		color.RGBA{63, 54, 86, 255},
