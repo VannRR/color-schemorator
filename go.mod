@@ -1,3 +1,3 @@
-module color-schemorator
+module github.com/VannRR/color-schemorator
 
-go 1.23.0
+go 1.23.1

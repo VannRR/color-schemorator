@@ -12,8 +12,8 @@ import (
 	"sort"
 	"sync"
 
-	parsepalette "color-schemorator/parse-palette"
-	"color-schemorator/utility"
+	"github.com/VannRR/color-schemorator/parsepalette"
+	"github.com/VannRR/color-schemorator/utility"
 )
 
 const maxImgFileSizeMB = 15

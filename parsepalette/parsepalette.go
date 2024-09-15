@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"color-schemorator/utility"
+	"github.com/VannRR/color-schemorator/utility"
 )
 
 const (

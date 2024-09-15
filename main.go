@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	imagehandling "color-schemorator/image-handling"
-	parsepalette "color-schemorator/parse-palette"
-	"color-schemorator/utility"
+	"github.com/VannRR/color-schemorator/imagehandling"
+	"github.com/VannRR/color-schemorator/parsepalette"
+	"github.com/VannRR/color-schemorator/utility"
 )
 
 const version = "1.1.2"

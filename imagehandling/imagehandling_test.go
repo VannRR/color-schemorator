@@ -6,10 +6,10 @@ import (
 	"slices"
 	"testing"
 
-	parsepalette "color-schemorator/parse-palette"
+	"github.com/VannRR/color-schemorator/parsepalette"
 )
 
-const testPaletteInputPath = "../parse-palette/test-palette-input.txt"
+const testPaletteInputPath = "../parsepalette/test-palette-input.txt"
 const testImgInputPath = "test-img-input.png"
 const testImgOutputExpectPath = "test-img-output-expect.png"
 const testImgOutputSavePath = "test-img-output-save" // add  ext in function
